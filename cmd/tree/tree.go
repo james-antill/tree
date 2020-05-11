@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
-	"github.com/a8m/tree"
+	"github.com/james-antill/tree"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
@@ -99,6 +101,29 @@ func (f *fs) ReadDir(path string) ([]string, error) {
 	return names, nil
 }
 
+func normPath(root string) (string, error) {
+	ret, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	root = ret
+
+	fi, err := os.Lstat(root)
+	if err != nil {
+		return "", err
+	}
+
+	if (fi.Mode() & os.ModeSymlink) != 0 {
+		nr, err := filepath.EvalSymlinks(root)
+		if err != nil {
+			return "", err
+		}
+		return nr, nil
+	}
+
+	return root, nil
+}
+
 func main() {
 	flag.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	var nd, nf int
@@ -116,6 +141,8 @@ func main() {
 		if err != nil {
 			errAndExit(err)
 		}
+	} else if terminal.IsTerminal(int(os.Stdout.Fd())) {
+		*C = true
 	}
 	defer outFile.Close()
 	// Check sort-type
@@ -166,6 +193,9 @@ func main() {
 		Colorize: *C,
 	}
 	for _, dir := range dirs {
+		if d, e := normPath(dir); e == nil {
+			dir = d
+		}
 		inf := tree.New(dir)
 		d, f := inf.Visit(opts)
 		nd, nf = nd+d, nf+f

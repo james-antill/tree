@@ -114,6 +114,9 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 		if !opts.All && strings.HasPrefix(name, ".") {
 			continue
 		}
+		if strings.HasSuffix(name, "~") {
+			continue
+		}
 		nnode := &Node{
 			path:   filepath.Join(node.path, name),
 			depth:  node.depth + 1,
@@ -182,7 +185,34 @@ func (node *Node) sort(opts *Options) {
 }
 
 // Print nodes based on the given configuration.
-func (node *Node) Print(opts *Options) { node.print("", opts) }
+func (node *Node) Print(opts *Options) { node.print("", "", 0, opts) }
+
+func dirRecursiveChildren(opts *Options, node *Node) (num int64, err error) {
+	if opts.DeepLevel > 0 && node.depth >= opts.DeepLevel {
+		err = errors.New("Depth too high")
+		return 1, err
+	}
+
+	num = int64(len(node.nodes))
+	for _, nnode := range node.nodes {
+		if nnode.err != nil {
+			err = nnode.err
+			continue
+		}
+
+		if !nnode.IsDir() {
+			continue
+		}
+
+		nnum, e := dirRecursiveChildren(opts, nnode)
+		if e != nil {
+			err = e
+		}
+		num += nnum
+	}
+
+	return num, err
+}
 
 func dirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
 	if opts.DeepLevel > 0 && node.depth >= opts.DeepLevel {
@@ -208,7 +238,29 @@ func dirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
 	return
 }
 
-func (node *Node) print(indent string, opts *Options) {
+const alwaysShowChildren = 2 // Always show this number of entries...
+// Take the direct children as Key and convert to next children as Val
+var chopChildrenKey = [...]int64{6_400, 3_200, 1_600, 800, 400, 200, 100,
+	50, 24, 12, 8, 4}
+
+// 24 is a normal terminal screen size... 8 for low numbers of direct children
+// Because is you have a dir. with just 2 dirs. in it show more.
+var chopChildrenVal = [...]int64{8 * 24, 6 * 24, 5 * 24, 4 * 24, 3 * 24, 2 * 24, 24,
+	18, 12, 6, 4, 4, 8}
+
+func chopChildren(dchildren int64) int64 {
+	for i, v := range chopChildrenKey {
+		if v > dchildren {
+			continue
+		}
+
+		return chopChildrenVal[i]
+	}
+
+	return chopChildrenVal[len(chopChildrenVal)-1]
+}
+
+func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	if node.err != nil {
 		err := node.err.Error()
 		if msgs := strings.Split(err, ": "); len(msgs) > 1 {
@@ -217,6 +269,7 @@ func (node *Node) print(indent string, opts *Options) {
 		fmt.Printf("%s [%s]\n", node.path, err)
 		return
 	}
+	var psize int
 	if !node.IsDir() {
 		var props []string
 		ok, inode, device, uid, gid := getStat(node)
@@ -262,7 +315,9 @@ func (node *Node) print(indent string, opts *Options) {
 			props = append(props, node.ModTime().Format("Jan 02 15:04"))
 		}
 		// Print properties
-		if len(props) > 0 {
+		if len(props) == 1 {
+			fmt.Fprintf(opts.OutFile, "%s ", strings.Join(props, " "))
+		} else if len(props) > 0 {
 			fmt.Fprintf(opts.OutFile, "[%s]  ", strings.Join(props, " "))
 		}
 	} else {
@@ -286,7 +341,7 @@ func (node *Node) print(indent string, opts *Options) {
 		}
 		// Print properties
 		if len(props) > 0 {
-			fmt.Fprintf(opts.OutFile, "[%s]  ", strings.Join(props, " "))
+			psize, _ = fmt.Fprintf(opts.OutFile, "%s ", strings.Join(props, " "))
 		}
 	}
 	// name/path
@@ -336,20 +391,47 @@ func (node *Node) print(indent string, opts *Options) {
 	}
 	// Print file details
 	// the main idea of the print logic came from here: github.com/campoy/tools/tree
-	fmt.Fprintln(opts.OutFile, name)
-	add := "│   "
+	fmt.Fprintf(opts.OutFile, "%s%s\n", indentc, name)
+
+	children := int64(len(node.nodes))
+
+	if sofar == 0 {
+		sofar = chopChildren(children)
+		// fmt.Fprintln(opts.OutFile, "JDBG:", name, sofar, children)
+	} else if node.IsDir() {
+		// fmt.Fprintln(opts.OutFile, "JDBG: b", name, sofar)
+		if children > sofar {
+			recChildren, err := dirRecursiveChildren(opts, node)
+			if err != nil && recChildren == 1 {
+				fmt.Fprintf(opts.OutFile, "%*s%s%s[more file(s)]\n", psize, "", indentn, "┖┄ ")
+			} else {
+				fmt.Fprintf(opts.OutFile, "%*s%s%s[%d file(s)]\n", psize, "", indentn, "┖┄ ", recChildren)
+			}
+			return
+		}
+
+		if children > sofar {
+			sofar = 1
+		} else {
+			sofar -= children
+		}
+		// fmt.Fprintln(opts.OutFile, "JDBG: e", name, sofar, children)
+	}
+
+	add := "┃ "
 	for i, nnode := range node.nodes {
 		if opts.NoIndent {
 			add = ""
 		} else {
 			if i == len(node.nodes)-1 {
-				fmt.Fprintf(opts.OutFile, indent+"└── ")
-				add = "    "
+				indentc = indentn + "┗━ "
+				add = "  "
 			} else {
-				fmt.Fprintf(opts.OutFile, indent+"├── ")
+				indentc = indentn + "┣━ "
 			}
 		}
-		nnode.print(indent+add, opts)
+
+		nnode.print(indentc, indentn+add, sofar, opts)
 	}
 }
 

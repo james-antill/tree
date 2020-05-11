@@ -21,6 +21,7 @@ type Node struct {
 	depth  int
 	err    error
 	nodes  Nodes
+	sorted bool
 	vpaths map[string]bool
 }
 
@@ -150,16 +151,23 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 		node.nodes = append(node.nodes, nnode)
 		dirs, files = dirs+d, files+f
 	}
-	// Sorting
-	if !opts.NoSort {
-		node.sort(opts)
-	}
 	return
+}
+
+func (node *Node) sortedNodes(opts *Options) Nodes {
+	if !node.sorted {
+		node.sort(opts)
+		node.sorted = true
+	}
+
+	return node.nodes
 }
 
 func (node *Node) sort(opts *Options) {
 	var fn SortFunc
 	switch {
+	case opts.NoSort:
+		return
 	case opts.ModSort:
 		fn = ModSort
 	case opts.CTimeSort:
@@ -419,7 +427,7 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	}
 
 	add := "┃ "
-	for i, nnode := range node.nodes {
+	for i, nnode := range node.sortedNodes(opts) {
 		if opts.NoIndent {
 			add = ""
 		} else {

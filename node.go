@@ -118,6 +118,12 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 		if strings.HasSuffix(name, "~") {
 			continue
 		}
+		if strings.HasSuffix(name, ".bak") {
+			continue
+		}
+		if strings.HasSuffix(name, ".swp") && false {
+			continue
+		}
 		nnode := &Node{
 			path:   filepath.Join(node.path, name),
 			depth:  node.depth + 1,

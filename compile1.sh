@@ -1,10 +1,13 @@
 #! /bin/sh -e
 
+race=
+# race=-race
+
 cd cmd/tree
 
-if ! go build; then
+if ! go build $race; then
     exit 1
 fi
 
-mv tree tree.bin.${GOOS}-${GOARCH}
+mv tree tree.bin.$(go env GOOS)-$(go env GOARCH)
 

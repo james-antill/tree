@@ -499,7 +499,7 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 			return
 		}
 
-		if children > sofar {
+		if children >= sofar {
 			sofar = 1
 		} else {
 			sofar -= children

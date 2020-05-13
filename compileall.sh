@@ -37,6 +37,7 @@ done < <(go tool dist list)
 else
     compile linux/amd64
     compile darwin/amd64
+    compile windows/amd64
 fi
 
 

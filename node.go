@@ -74,8 +74,9 @@ type Options struct {
 	CTimeSort bool
 	ReverSort bool
 	// Graphics
-	NoIndent bool
-	Colorize bool
+	NoIndent   bool
+	Colorize   bool
+	JoinSingle bool
 
 	wg  sync.WaitGroup
 	sem *semaphore.Weighted
@@ -352,6 +353,54 @@ func chopChildren(dchildren int64) int64 {
 	return chopChildrenVal[len(chopChildrenVal)-1]
 }
 
+func joinSingleNodes(opts *Options, node *Node, name string) (*Node, string) {
+
+	if !opts.JoinSingle {
+		return node, name
+	}
+
+	children := int64(len(node.nodes))
+	if children != 1 {
+		return node, name
+	}
+
+	if opts.Inodes {
+		return node, name
+	}
+	if opts.Device {
+		return node, name
+	}
+	if opts.FileMode {
+		return node, name
+	}
+	if opts.ShowUid {
+		return node, name
+	}
+	if opts.ShowGid {
+		return node, name
+	}
+	if opts.LastMod {
+		return node, name
+	}
+	// Showing size is fine, because it's just an empty dir.
+	if opts.FullPath {
+		return node, name
+	}
+	nxt := node.nodes[0]
+
+	nxtName := nxt.Name()
+	// Quotes
+	if opts.Quotes {
+		nxtName = fmt.Sprintf("\"%s\"", nxtName)
+	}
+	// Colorize
+	if opts.Colorize {
+		nxtName = ANSIColor(nxt, nxtName)
+	}
+	name = filepath.Join(name, nxtName)
+	return joinSingleNodes(opts, nxt, name)
+}
+
 func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	if node.err != nil {
 		err := node.err.Error()
@@ -386,7 +435,7 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 				props = append(props, fmt.Sprintf("%-8s", u.Username))
 			}
 		}
-		// Gorup/Gid
+		// Group/Gid
 		// TODO: support groupname
 		if ok && opts.ShowGid {
 			gidStr := strconv.Itoa(int(gid))
@@ -443,6 +492,7 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	} else {
 		name = node.Name()
 	}
+
 	// Quotes
 	if opts.Quotes {
 		name = fmt.Sprintf("\"%s\"", name)
@@ -451,6 +501,9 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	if opts.Colorize {
 		name = ANSIColor(node, name)
 	}
+	// Do the github thing...
+	node, name = joinSingleNodes(opts, node, name)
+
 	// IsSymlink
 	if node.Mode()&os.ModeSymlink == os.ModeSymlink {
 		vtarget, err := os.Readlink(node.path)
@@ -481,11 +534,8 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 			}
 		}
 	}
-	// Print file details
-	// the main idea of the print logic came from here: github.com/campoy/tools/tree
 	fmt.Fprintf(opts.OutFile, "%s%s\n", indentc, name)
 
-	children := int64(len(node.nodes))
 	deepLevel := opts.DeepLevel
 	if deepLevel > 0 && node.depth >= deepLevel {
 		// This should only be true when viewing UnitSize/ByteSize data.
@@ -495,6 +545,7 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 		sofar = 1
 	}
 
+	children := int64(len(node.nodes))
 	// Dynamic leveling, show something but don't spam large trees.
 	if deepLevel == -1 && sofar == 0 {
 		sofar = chopChildren(children)
@@ -513,6 +564,8 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 		}
 	}
 
+	// Print tree structure
+	// the main idea of the print logic came from here: github.com/campoy/tools/tree
 	add := "┃ "
 	for i, nnode := range node.sortedNodes(opts) {
 		if opts.NoIndent {

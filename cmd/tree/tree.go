@@ -46,6 +46,7 @@ var (
 	// Graphics
 	i = flag.Bool("i", false, "")
 	C = flag.Bool("C", false, "")
+	J = flag.Bool("J", false, "")
 )
 
 var usage = `Usage: tree [options...] [paths...]
@@ -83,6 +84,7 @@ Options:
     ------- Graphics options ------
     -i		    Don't print indentation lines.
     -C		    Turn colorization on always. (def: on for terminals)
+    -J		    Turn joining of single directories off.
 `
 
 type fs struct{}
@@ -193,6 +195,7 @@ func main() {
 		// Graphics
 		NoIndent: *i,
 		Colorize: *C,
+		JoinSingle: !*J,
 	}
 	for _, dir := range dirs {
 		if d, e := normPath(dir); e == nil {

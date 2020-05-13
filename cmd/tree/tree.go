@@ -19,7 +19,7 @@ var (
 	ignorecase = flag.Bool("ignore-case", false, "")
 	noreport   = flag.Bool("noreport", false, "")
 	l          = flag.Bool("l", false, "")
-	L          = flag.Int("L", 3, "")
+	L          = flag.Int("L", -1, "")
 	P          = flag.String("P", "", "")
 	I          = flag.String("I", "", "")
 	o          = flag.String("o", "", "")
@@ -54,7 +54,7 @@ Options:
     -d		    List directories only.
     -l		    Follow symbolic links like directories.
     -f		    Print the full path prefix for each file.
-    -L		    Descend only level directories deep.
+    -L		    Descend only N level dirs. deep (0=unlimited, -1=auto (def)).
     -P		    List only those files that match the pattern given.
     -I		    Do not list files that match the given pattern.
     --ignore-case   Ignore case when pattern matching.
@@ -80,7 +80,7 @@ Options:
     --sort X	    Select sort: name,version,size,mtime,ctime.
     ------- Graphics options ------
     -i		    Don't print indentation lines.
-    -C		    Turn colorization on always.
+    -C		    Turn colorization on always. (def: on for terminals)
 `
 
 type fs struct{}

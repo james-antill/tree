@@ -409,11 +409,9 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 
 	children := int64(len(node.nodes))
 
-	if sofar == 0 {
+	if opts.DeepLevel == -1 && sofar == 0 {
 		sofar = chopChildren(children)
-		// fmt.Fprintln(opts.OutFile, "JDBG:", name, sofar, children)
-	} else if node.IsDir() {
-		// fmt.Fprintln(opts.OutFile, "JDBG: b", name, sofar)
+	} else if opts.DeepLevel == -1 && node.IsDir() {
 		if children > sofar {
 			recChildren, err := dirRecursiveChildren(opts, node)
 			if err != nil && recChildren == 1 {
@@ -429,7 +427,6 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 		} else {
 			sofar -= children
 		}
-		// fmt.Fprintln(opts.OutFile, "JDBG: e", name, sofar, children)
 	}
 
 	add := "┃ "

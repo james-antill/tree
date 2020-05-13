@@ -1,7 +1,6 @@
 package tree
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"golang.org/x/sync/semaphore"
@@ -76,6 +75,7 @@ type Options struct {
 	NoIndent bool
 	Colorize bool
 
+	wg  sync.WaitGroup
 	sem *semaphore.Weighted
 	res chan workerResult
 }
@@ -128,7 +128,8 @@ func newSubNode(opts *Options, node *Node, name string) (nnode *Node, dirs, file
 	return nnode, d, f
 }
 
-const semWeight = 128
+const semWeight = 64
+const rootProc = true
 
 // Visit all files under the given node.
 func (node *Node) Visit(opts *Options) (dirs, files int) {
@@ -169,7 +170,7 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 	var fin chan workerResult
 	if goProcs && node.depth == 0 {
 		opts.sem = semaphore.NewWeighted(semWeight)
-		opts.res = make(chan workerResult)
+		opts.res = make(chan workerResult, semWeight)
 		rwg.Add(1)
 		fin = make(chan workerResult)
 		go func() {
@@ -186,7 +187,6 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 	}
 	for i := range names {
 		name := names[i]
-		// fmt.Println("JDBG: beg:", name)
 		// "all" option
 		if !opts.All && strings.HasPrefix(name, ".") {
 			continue
@@ -200,9 +200,11 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 		if strings.HasSuffix(name, ".swp") && false {
 			continue
 		}
-		if goProcs && node.depth != 0 {
+		if goProcs && (rootProc || node.depth != 0) {
 			if opts.sem.TryAcquire(2) {
+				opts.wg.Add(1)
 				go func() {
+					defer opts.wg.Done()
 					defer opts.sem.Release(2)
 					nnode, d, f := newSubNode(opts, node, name)
 					if nnode == nil {
@@ -217,16 +219,15 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 		if nnode == nil {
 			continue
 		}
-		if goProcs && node.depth != 0 {
+		if goProcs && (rootProc || node.depth != 0) {
 			opts.res <- workerResult{node, nnode, d, f}
 			continue
 		}
-		// fmt.Println("JDBG: done:", name)
 		node.nodes = append(node.nodes, nnode)
 		dirs, files = dirs+d, files+f
 	}
 	if goProcs && node.depth == 0 {
-		opts.sem.Acquire(context.Background(), semWeight)
+		opts.wg.Wait()
 		close(opts.res)
 		val := <-fin
 		dirs += val.d

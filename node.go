@@ -280,7 +280,9 @@ func (node *Node) sort(opts *Options) {
 func (node *Node) Print(opts *Options) { node.print("", "", 0, opts) }
 
 func dirRecursiveChildren(opts *Options, node *Node) (num int64, err error) {
-	if opts.DeepLevel > 0 && node.depth >= opts.DeepLevel {
+	// Always called with showSize == 1 atm.
+	showSize := opts.UnitSize || opts.ByteSize
+	if !showSize && opts.DeepLevel > 0 && node.depth >= opts.DeepLevel {
 		err = errors.New("Depth too high")
 		return 1, err
 	}
@@ -495,13 +497,9 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	if deepLevel == -1 && sofar == 0 {
 		sofar = chopChildren(children)
 	} else if deepLevel == -1 && node.IsDir() {
-		if children > sofar {
-			recChildren, err := dirRecursiveChildren(opts, node)
-			if err != nil && recChildren == 1 {
-				fmt.Fprintf(opts.OutFile, "%*s%s%s[more file(s)]\n", psize, "", indentn, "┖┄ ")
-			} else {
-				fmt.Fprintf(opts.OutFile, "%*s%s%s[%d file(s)]\n", psize, "", indentn, "┖┄ ", recChildren)
-			}
+		if children > sofar || opts.DeepLevel != -1 {
+			recChildren, _ := dirRecursiveChildren(opts, node)
+			fmt.Fprintf(opts.OutFile, "%*s%s%s[%d file(s)]\n", psize, "", indentn, "┖┄ ", recChildren)
 			return
 		}
 

@@ -28,6 +28,7 @@ function compile {
     fi
 }
 
+go fmt
 if [ "$1x" != "qx" ]; then
 
 while read -r line; do

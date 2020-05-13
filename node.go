@@ -157,7 +157,8 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 		dirs++
 	}
 	// DeepLevel option
-	if opts.DeepLevel > 0 && opts.DeepLevel <= node.depth {
+	showSize := opts.UnitSize || opts.ByteSize
+	if !showSize && (opts.DeepLevel > 0 && opts.DeepLevel <= node.depth) {
 		return
 	}
 	names, err := opts.Fs.ReadDir(node.path)
@@ -306,10 +307,6 @@ func dirRecursiveChildren(opts *Options, node *Node) (num int64, err error) {
 }
 
 func dirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
-	if opts.DeepLevel > 0 && node.depth >= opts.DeepLevel {
-		err = errors.New("Depth too high")
-	}
-
 	for _, nnode := range node.nodes {
 		if nnode.err != nil {
 			err = nnode.err
@@ -485,10 +482,19 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	fmt.Fprintf(opts.OutFile, "%s%s\n", indentc, name)
 
 	children := int64(len(node.nodes))
+	deepLevel := opts.DeepLevel
+	if deepLevel > 0 && node.depth >= deepLevel {
+		// This should only be true when viewing UnitSize/ByteSize data.
+		// We could just return, and look like normal. But we have the data so
+		// might as well show the children too like dynamic leveling.
+		deepLevel = -1
+		sofar = 1
+	}
 
-	if opts.DeepLevel == -1 && sofar == 0 {
+	// Dynamic leveling, show something but don't spam large trees.
+	if deepLevel == -1 && sofar == 0 {
 		sofar = chopChildren(children)
-	} else if opts.DeepLevel == -1 && node.IsDir() {
+	} else if deepLevel == -1 && node.IsDir() {
 		if children > sofar {
 			recChildren, err := dirRecursiveChildren(opts, node)
 			if err != nil && recChildren == 1 {

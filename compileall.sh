@@ -19,7 +19,7 @@ function compile {
   -v "$PWD":/usr/src/myapp \
   -w /usr/src/myapp \
   -e GOOS=$GOOS \
-  -e GOARCH=$GOARCH -it golang:$GOversion /usr/src/myapp/compile1.sh; then
+  -e GOARCH=$GOARCH golang:$GOversion /usr/src/myapp/compile1.sh; then
             echo "*** Failed compiling GOOS=${GOOS} GOARCH=${GOARCH}"
             failures=$((failures+1))
         fi

@@ -9,6 +9,8 @@ import (
 
 	"github.com/james-antill/tree"
 	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 var (
@@ -203,9 +205,11 @@ func main() {
 	}
 	// Print footer report
 	if !*noreport {
-		footer := fmt.Sprintf("\n%d directories", nd)
+		p := message.NewPrinter(language.Make(os.Getenv("LANG")))
+
+		footer := p.Sprintf("\n%d directories", nd)
 		if !opts.DirsOnly {
-			footer += fmt.Sprintf(", %d files", nf)
+			footer += p.Sprintf(", %d files", nf)
 		}
 		fmt.Fprintln(outFile, footer)
 	}

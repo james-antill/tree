@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"io"
 	"os"
 	"os/user"
@@ -499,7 +501,8 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	} else if deepLevel == -1 && node.IsDir() {
 		if children > sofar || opts.DeepLevel != -1 {
 			recChildren, _ := dirRecursiveChildren(opts, node)
-			fmt.Fprintf(opts.OutFile, "%*s%s%s[%d file(s)]\n", psize, "", indentn, "┖┄ ", recChildren)
+			p := message.NewPrinter(language.Make(os.Getenv("LANG")))
+			p.Fprintf(opts.OutFile, "%*s%s%s[%d file(s)]\n", psize, "", indentn, "┖┄ ", recChildren)
 			return
 		}
 

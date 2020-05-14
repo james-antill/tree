@@ -543,6 +543,10 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 		// might as well show the children too like dynamic leveling.
 		deepLevel = -1
 		sofar = 1
+		// But only if Level > 1, otherwise it can be a bit too spammy.
+		if opts.DeepLevel == 1 {
+			return
+		}
 	}
 
 	children := int64(len(node.nodes))

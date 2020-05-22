@@ -311,7 +311,9 @@ func dirRecursiveChildren(opts *Options, node *Node) (num int64, err error) {
 	return num, err
 }
 
-func dirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
+// DirRecursiveSize returns the size of the directory, as the total of all
+// child nodes.
+func DirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
 	for _, nnode := range node.nodes {
 		if nnode.err != nil {
 			err = nnode.err
@@ -321,7 +323,7 @@ func dirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
 		if !nnode.IsDir() {
 			size += nnode.Size()
 		} else {
-			nsize, e := dirRecursiveSize(opts, nnode)
+			nsize, e := DirRecursiveSize(opts, nnode)
 			size += nsize
 			if e != nil {
 				err = e
@@ -401,6 +403,14 @@ func joinSingleNodes(opts *Options, node *Node, name string) (*Node, string) {
 	return joinSingleNodes(opts, nxt, name)
 }
 
+// FormatSize as a string
+func FormatSize(opts *Options, size int64) string {
+	if opts.UnitSize {
+		return fmt.Sprintf("%4s", formatBytes(size))
+	}
+	return fmt.Sprintf("%11d", size)
+}
+
 func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	if node.err != nil {
 		err := node.err.Error()
@@ -443,13 +453,7 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 		}
 		// Size
 		if opts.ByteSize || opts.UnitSize {
-			var size string
-			if opts.UnitSize {
-				size = fmt.Sprintf("%4s", formatBytes(node.Size()))
-			} else {
-				size = fmt.Sprintf("%11d", node.Size())
-			}
-			props = append(props, size)
+			props = append(props, FormatSize(opts, node.Size()))
 		}
 		// Last modification
 		if opts.LastMod {
@@ -466,17 +470,17 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 		// Size
 		if opts.ByteSize || opts.UnitSize {
 			var size string
-			rsize, err := dirRecursiveSize(opts, node)
+
+			rsize, err := DirRecursiveSize(opts, node)
+
 			if err != nil && rsize <= 0 {
 				if opts.UnitSize {
 					size = "????"
 				} else {
 					size = "???????????"
 				}
-			} else if opts.UnitSize {
-				size = fmt.Sprintf("%4s", formatBytes(rsize))
 			} else {
-				size = fmt.Sprintf("%11d", rsize)
+				size = FormatSize(opts, rsize)
 			}
 			props = append(props, size)
 		}

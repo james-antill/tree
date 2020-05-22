@@ -131,6 +131,7 @@ func normPath(root string) (string, error) {
 func main() {
 	flag.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	var nd, nf int
+	var ns int64
 	var dirs = []string{"."}
 	flag.Parse()
 	// Make it work with leading dirs
@@ -193,8 +194,8 @@ func main() {
 		NameSort:  *sort == "name",
 		SizeSort:  *sort == "size",
 		// Graphics
-		NoIndent: *i,
-		Colorize: *C,
+		NoIndent:   *i,
+		Colorize:   *C,
 		JoinSingle: !*J,
 	}
 	for _, dir := range dirs {
@@ -204,6 +205,8 @@ func main() {
 		inf := tree.New(dir)
 		d, f := inf.Visit(opts)
 		nd, nf = nd+d, nf+f
+		nsize, _ := tree.DirRecursiveSize(opts, inf)
+		ns += nsize
 		inf.Print(opts)
 	}
 	// Print footer report
@@ -213,6 +216,14 @@ func main() {
 		footer := p.Sprintf("\n%d directories", nd)
 		if !opts.DirsOnly {
 			footer += p.Sprintf(", %d files", nf)
+		}
+		showSize := opts.UnitSize || opts.ByteSize
+		if showSize {
+			if opts.UnitSize {
+				footer += fmt.Sprintf(", %s size", tree.FormatSize(opts, ns))
+			} else {
+				footer += p.Sprintf(", %d size", ns)
+			}
 		}
 		fmt.Fprintln(outFile, footer)
 	}

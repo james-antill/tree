@@ -472,7 +472,7 @@ func FormatSize(opts *Options, size int64) string {
 	return fmt.Sprintf("%11d", size)
 }
 
-func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
+func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 	if node.err != nil {
 		err := node.err.Error()
 		if msgs := strings.Split(err, ": "); len(msgs) > 1 {
@@ -607,7 +607,7 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 		// We could just return, and look like normal. But we have the data so
 		// might as well show the children too like dynamic leveling.
 		deepLevel = -1
-		sofar = 1
+		cutoff = 1
 		// But only if Level > 1, otherwise it can be a bit too spammy.
 		if opts.DeepLevel == 1 {
 			return
@@ -616,22 +616,22 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 
 	children := int64(len(node.nodes))
 	// Dynamic leveling, show something but don't spam large trees.
-	if deepLevel == -1 && sofar == 0 {
-		sofar = chopChildren(children)
-		sofar = dirNextLevelCutoff(opts, node, sofar)
-		// fmt.Println("JDBG:", children, sofar)
+	if deepLevel == -1 && cutoff == 0 {
+		cutoff = chopChildren(children)
+		cutoff = dirNextLevelCutoff(opts, node, cutoff)
+		// fmt.Println("JDBG:", children, cutoff)
 	} else if deepLevel == -1 && node.IsDir() {
-		if children > sofar || opts.DeepLevel != -1 {
+		if children > cutoff || opts.DeepLevel != -1 {
 			recChildren, _ := dirRecursiveChildren(opts, node)
 			p := message.NewPrinter(language.Make(os.Getenv("LANG")))
 			p.Fprintf(opts.OutFile, "%*s%s%s[%d file(s)]\n", psize, "", indentn, "┖┄ ", recChildren)
 			return
 		}
 
-		if children >= sofar {
-			sofar = 1
+		if children >= cutoff {
+			cutoff = 1
 		} else {
-			sofar -= children
+			cutoff -= children
 		}
 	}
 
@@ -650,6 +650,6 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 			}
 		}
 
-		nnode.print(indentc, indentn+add, sofar, opts)
+		nnode.print(indentc, indentn+add, cutoff, opts)
 	}
 }

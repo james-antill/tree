@@ -282,6 +282,7 @@ func (node *Node) sort(opts *Options) {
 // Print nodes based on the given configuration.
 func (node *Node) Print(opts *Options) { node.print("", "", 0, opts) }
 
+// dirDirectChildren give the direct dirs. and files for a directory
 func dirDirectChildren(node *Node) (int64, int64) {
 	var D int64
 	var F int64
@@ -293,6 +294,14 @@ func dirDirectChildren(node *Node) (int64, int64) {
 		}
 	}
 	return D, F
+}
+
+// dirDirectChildren1 give the number of direct children as a single number,
+// where dirs. are counted as two because of the [files(s)] subtree.
+func dirDirectChildren1(node *Node) int64 {
+	D, F := dirDirectChildren(node)
+	D *= 2
+	return D + F
 }
 
 // dirNextLevelCutoff takes a cutoff value and returns what the limit to show
@@ -318,15 +327,11 @@ used_loop:
 			continue
 		}
 
-		children := len(nnode.nodes)
-		if children >= len(used) {
+		children := dirDirectChildren1(nnode)
+		if children >= int64(len(used)) {
 			continue
 		}
-
-		D, F := dirDirectChildren(nnode)
-		D *= 2
-		nlines := D + F
-		used[children] += nlines
+		used[children] += children
 	}
 
 	var tot int64
@@ -422,8 +427,7 @@ func joinSingleNodes(opts *Options, node *Node, name string) (*Node, string) {
 		return node, name
 	}
 
-	children := int64(len(node.nodes))
-	if children != 1 {
+	if len(node.nodes) != 1 {
 		return node, name
 	}
 
@@ -614,13 +618,14 @@ func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 		}
 	}
 
-	children := int64(len(node.nodes))
 	// Dynamic leveling, show something but don't spam large trees.
 	if deepLevel == -1 && cutoff == 0 {
-		cutoff = chopChildren(children)
-		cutoff = dirNextLevelCutoff(opts, node, cutoff)
-		// fmt.Println("JDBG:", children, cutoff)
+		children := dirDirectChildren1(node)
+		choped := chopChildren(children)
+		cutoff = dirNextLevelCutoff(opts, node, choped)
+		// fmt.Println("JDBG:", children, choped, cutoff)
 	} else if deepLevel == -1 && node.IsDir() {
+		children := dirDirectChildren1(node)
 		if children > cutoff || opts.DeepLevel != -1 {
 			recChildren, _ := dirRecursiveChildren(opts, node)
 			p := message.NewPrinter(language.Make(os.Getenv("LANG")))

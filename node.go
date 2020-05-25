@@ -282,8 +282,66 @@ func (node *Node) sort(opts *Options) {
 // Print nodes based on the given configuration.
 func (node *Node) Print(opts *Options) { node.print("", "", 0, opts) }
 
+func dirDirectChildren(node *Node) (int64, int64) {
+	var D int64
+	var F int64
+	for _, nnode := range node.nodes {
+		if nnode.IsDir() {
+			D++
+		} else {
+			F++
+		}
+	}
+	return D, F
+}
+
+// dirNextLevelCutoff takes a cutoff value and returns what the limit to show
+// for the next should be to be under that cutoff.
+func dirNextLevelCutoff(opts *Options, node *Node, cutoff int64) int64 {
+	// We could go a couple lower as we never use used[0] or used[1].
+	used := make([]int64, cutoff+1)
+
+used_loop:
+	for _, nnode := range node.nodes {
+		// First do the github thing...
+		if opts.JoinSingle {
+			for len(nnode.nodes) <= 1 {
+				if len(nnode.nodes) < 1 {
+					continue used_loop
+				}
+				nnode = nnode.nodes[0]
+			}
+		} else if len(nnode.nodes) <= 1 {
+			continue
+		}
+		if !nnode.IsDir() {
+			continue
+		}
+
+		children := len(nnode.nodes)
+		if children >= len(used) {
+			continue
+		}
+
+		D, F := dirDirectChildren(nnode)
+		D *= 2
+		nlines := D + F
+		used[children] += nlines
+	}
+
+	var tot int64
+	for i := range used {
+		tot += used[i]
+		if tot > cutoff {
+			return int64(i - 1)
+		}
+	}
+
+	return cutoff
+}
+
 func dirRecursiveChildren(opts *Options, node *Node) (num int64, err error) {
-	// Always called with showSize == 1 atm.
+	// Always called with showSize == true atm.
 	showSize := opts.UnitSize || opts.ByteSize
 	if !showSize && opts.DeepLevel > 0 && node.depth >= opts.DeepLevel {
 		err = errors.New("Depth too high")
@@ -343,6 +401,7 @@ var chopChildrenKey = [...]int64{6_400, 3_200, 1_600, 800, 400, 200, 100,
 var chopChildrenVal = [...]int64{8 * 24, 6 * 24, 5 * 24, 4 * 24, 3 * 24, 2 * 24, 24,
 	18, 12, 6, 4, 4, 8}
 
+// Roughly allow upto 50% growth at the next level of the tree
 func chopChildren(dchildren int64) int64 {
 	for i, v := range chopChildrenKey {
 		if v > dchildren {
@@ -355,6 +414,8 @@ func chopChildren(dchildren int64) int64 {
 	return chopChildrenVal[len(chopChildrenVal)-1]
 }
 
+// joinSingleNodes combine output like in github so a single file in a dir.
+// becomes dir/file instead.
 func joinSingleNodes(opts *Options, node *Node, name string) (*Node, string) {
 
 	if !opts.JoinSingle {
@@ -557,6 +618,8 @@ func (node *Node) print(indentc, indentn string, sofar int64, opts *Options) {
 	// Dynamic leveling, show something but don't spam large trees.
 	if deepLevel == -1 && sofar == 0 {
 		sofar = chopChildren(children)
+		sofar = dirNextLevelCutoff(opts, node, sofar)
+		// fmt.Println("JDBG:", children, sofar)
 	} else if deepLevel == -1 && node.IsDir() {
 		if children > sofar || opts.DeepLevel != -1 {
 			recChildren, _ := dirRecursiveChildren(opts, node)

@@ -259,8 +259,6 @@ func (node *Node) sort(opts *Options) {
 		fn = ModSort
 	case opts.CTimeSort:
 		fn = CTimeSort
-	case opts.DirSort:
-		fn = DirSort
 	case opts.VerSort:
 		fn = VerSort
 	case opts.SizeSort:
@@ -269,6 +267,12 @@ func (node *Node) sort(opts *Options) {
 		fn = NameSort
 	default:
 		fn = NameSort // Default should be sorted, not unsorted.
+	}
+	if opts.DirSort {
+		nxt := fn
+		fn = func(f1, f2 os.FileInfo) bool {
+			return DirSort(f1, f2, nxt)
+		}
 	}
 	if fn != nil {
 		if opts.ReverSort {

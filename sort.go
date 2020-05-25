@@ -20,7 +20,11 @@ func ModSort(f1, f2 os.FileInfo) bool {
 	return f1.ModTime().Before(f2.ModTime())
 }
 
-func DirSort(f1, f2 os.FileInfo) bool {
+// This is a secondary sort function...
+func DirSort(f1, f2 os.FileInfo, nxt SortFunc) bool {
+	if f1.IsDir() == f2.IsDir() {
+		return nxt(f1, f2)
+	}
 	return f1.IsDir() && !f2.IsDir()
 }
 

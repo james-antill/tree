@@ -106,49 +106,57 @@ type treeTest struct {
 }
 
 var listTests = []treeTest{
-	{"basic", &Options{Fs: fs, OutFile: out}, `root
-├── a
-├── b
-└── c
-    ├── d
-    └── e
+	{"basic", &Options{Fs: fs, OutFile: out}, `
+root
+┣━ a
+┣━ b
+┗━ c
+  ┣━ d
+  ┗━ e
 `, 1, 4},
-	{"all", &Options{Fs: fs, OutFile: out, All: true, NoSort: true}, `root
-├── a
-├── b
-└── c
-    ├── d
-    ├── e
-    └── .f
+	{"all", &Options{Fs: fs, OutFile: out, All: true}, `
+root
+┣━ a
+┣━ b
+┗━ c
+  ┣━ .f
+  ┣━ d
+  ┗━ e
 `, 1, 5},
-	{"dirs", &Options{Fs: fs, OutFile: out, DirsOnly: true}, `root
-└── c
+	{"dirs", &Options{Fs: fs, OutFile: out, DirsOnly: true}, `
+root
+┗━ c
 `, 1, 0},
-	{"fullPath", &Options{Fs: fs, OutFile: out, FullPath: true}, `root
-├── root/a
-├── root/b
-└── root/c
-    ├── root/c/d
-    └── root/c/e
+	{"fullPath", &Options{Fs: fs, OutFile: out, FullPath: true}, `
+root
+┣━ root/a
+┣━ root/b
+┗━ root/c
+  ┣━ root/c/d
+  ┗━ root/c/e
 `, 1, 4},
-	{"deepLevel", &Options{Fs: fs, OutFile: out, DeepLevel: 1}, `root
-├── a
-├── b
-└── c
+	{"deepLevel", &Options{Fs: fs, OutFile: out, DeepLevel: 1}, `
+root
+┣━ a
+┣━ b
+┗━ c
 `, 1, 2},
-	{"pattern", &Options{Fs: fs, OutFile: out, Pattern: "(a|e)"}, `root
-├── a
-└── c
-    └── e
+	{"pattern", &Options{Fs: fs, OutFile: out, Pattern: "(a|e)"}, `
+root
+┣━ a
+┗━ c
+  ┗━ e
 `, 1, 2},
-	{"ipattern", &Options{Fs: fs, OutFile: out, IPattern: "(a|e)"}, `root
-├── b
-└── c
-    └── d
+	{"ipattern", &Options{Fs: fs, OutFile: out, IPattern: "(a|e)"}, `
+root
+┣━ b
+┗━ c
+  ┗━ d
 `, 1, 2},
-	{"ignore-case", &Options{Fs: fs, OutFile: out, Pattern: "(A)", IgnoreCase: true}, `root
-├── a
-└── c
+	{"ignore-case", &Options{Fs: fs, OutFile: out, Pattern: "(A)", IgnoreCase: true}, `
+root
+┣━ a
+┗━ c
 `, 1, 1}}
 
 func TestSimple(t *testing.T) {
@@ -180,55 +188,83 @@ func TestSimple(t *testing.T) {
 			t.Errorf("wrong dir count for test %q:\ngot:\n%d\nexpected:\n%d", test.name, d, test.files)
 		}
 		inf.Print(test.opts)
-		if !out.equal(test.expected) {
-			t.Errorf("%s:\ngot:\n%+v\nexpected:\n%+v", test.name, out.str, test.expected)
+		expected := test.expected[1:]
+		if !out.equal(expected) {
+			t.Errorf("%s:\ngot:\n%+v\nexpected:\n%+v", test.name, out.str, expected)
 		}
 		out.clear()
 	}
 }
 
 var sortTests = []treeTest{
-	{"name-sort", &Options{Fs: fs, OutFile: out, NameSort: true}, `root
-├── a
-├── b
-└── c
-    └── d
+	{"name-sort", &Options{Fs: fs, OutFile: out, NameSort: true}, `
+root
+┣━ a
+┣━ b
+┗━ c
+  ┗━ d
 `, 1, 3},
-	{"dirs-first sort", &Options{Fs: fs, OutFile: out, DirSort: true}, `root
-├── c
-│   └── d
-├── b
-└── a
+	{"dirs-first sort", &Options{Fs: fs, OutFile: out, DirSort: true}, `
+root
+┣━ c
+┃ ┗━ d
+┣━ a
+┗━ b
 `, 1, 3},
-	{"reverse sort", &Options{Fs: fs, OutFile: out, ReverSort: true, DirSort: true}, `root
-├── b
-├── a
-└── c
-    └── d
+	{"reverse sort", &Options{Fs: fs, OutFile: out, ReverSort: true, DirSort: true}, `
+root
+┣━ b
+┣━ a
+┗━ c
+  ┗━ d
 `, 1, 3},
-	{"no-sort", &Options{Fs: fs, OutFile: out, NoSort: true, DirSort: true}, `root
-├── b
-├── c
-│   └── d
-└── a
+	//	{"no-sort", &Options{Fs: fs, OutFile: out, NoSort: true, DirSort: true}, `root
+	//├── b
+	//├── c
+	//│   └── d
+	//└── a
+	//`, 1, 3},
+	{"size-sort", &Options{Fs: fs, OutFile: out, SizeSort: true}, `
+root
+┣━ a
+┣━ c
+┃ ┗━ d
+┗━ b
 `, 1, 3},
-	{"size-sort", &Options{Fs: fs, OutFile: out, SizeSort: true}, `root
-├── a
-├── c
-│   └── d
-└── b
+	{"dir+size-sort", &Options{Fs: fs, OutFile: out, DirSort: true, SizeSort: true}, `
+root
+┣━ c
+┃ ┗━ d
+┣━ a
+┗━ b
 `, 1, 3},
-	{"last-mod-sort", &Options{Fs: fs, OutFile: out, ModSort: true}, `root
-├── a
-├── b
-└── c
-    └── d
+	{"reverse size-sort", &Options{Fs: fs, OutFile: out, SizeSort: true, ReverSort: true}, `
+root
+┣━ b
+┣━ c
+┃ ┗━ d
+┗━ a
 `, 1, 3},
-	{"c-time-sort", &Options{Fs: fs, OutFile: out, CTimeSort: true}, `root
-├── b
-├── c
-│   └── d
-└── a
+	{"reverse dir+size-sort", &Options{Fs: fs, OutFile: out, DirSort: true, SizeSort: true, ReverSort: true}, `
+root
+┣━ b
+┣━ a
+┗━ c
+  ┗━ d
+`, 1, 3},
+	{"last-mod-sort", &Options{Fs: fs, OutFile: out, ModSort: true}, `
+root
+┣━ a
+┣━ b
+┗━ c
+  ┗━ d
+`, 1, 3},
+	{"c-time-sort", &Options{Fs: fs, OutFile: out, CTimeSort: true}, `
+root
+┣━ a
+┣━ b
+┗━ c
+  ┗━ d
 `, 1, 3}}
 
 func TestSort(t *testing.T) {
@@ -250,48 +286,56 @@ func TestSort(t *testing.T) {
 		inf := New(root.name)
 		inf.Visit(test.opts)
 		inf.Print(test.opts)
-		if !out.equal(test.expected) {
-			t.Errorf("%s:\ngot:\n%+v\nexpected:\n%+v", test.name, out.str, test.expected)
+		expected := test.expected[1:]
+		if !out.equal(expected) {
+			t.Errorf("%s:\ngot:\n%+v\nexpected:\n%+v", test.name, out.str, expected)
 		}
 		out.clear()
 	}
 }
 
 var graphicTests = []treeTest{
-	{"no-indent", &Options{Fs: fs, OutFile: out, NoIndent: true}, `root
+	{"no-indent", &Options{Fs: fs, OutFile: out, NoIndent: true}, `
+root
 a
 b
 c
 `, 0, 3},
-	{"quotes", &Options{Fs: fs, OutFile: out, Quotes: true}, `"root"
-├── "a"
-├── "b"
-└── "c"
+	{"quotes", &Options{Fs: fs, OutFile: out, Quotes: true}, `
+"root"
+┣━ "a"
+┣━ "b"
+┗━ "c"
 `, 0, 3},
-	{"byte-size", &Options{Fs: fs, OutFile: out, ByteSize: true}, `[      12499]  root
-├── [       1500]  a
-├── [       9999]  b
-└── [       1000]  c
+	{"byte-size", &Options{Fs: fs, OutFile: out, ByteSize: true}, `
+      12499 root
+       1500 ┣━ a
+       9999 ┣━ b
+       1000 ┗━ c
 `, 0, 3},
-	{"unit-size", &Options{Fs: fs, OutFile: out, UnitSize: true}, `[ 12K]  root
-├── [1.5K]  a
-├── [ 10K]  b
-└── [1.0K]  c
+	{"unit-size", &Options{Fs: fs, OutFile: out, UnitSize: true}, `
+ 12K root
+1.5K ┣━ a
+ 10K ┣━ b
+1.0K ┗━ c
 `, 0, 3},
-	{"show-gid", &Options{Fs: fs, OutFile: out, ShowGid: true}, `root
-├── [1   ]  a
-├── [2   ]  b
-└── [1   ]  c
+	{"show-gid", &Options{Fs: fs, OutFile: out, ShowGid: true}, `
+root
+1    ┣━ a
+2    ┣━ b
+1    ┗━ c
 `, 0, 3},
-	{"mode", &Options{Fs: fs, OutFile: out, FileMode: true}, `root
-├── [-rw-r--r--]  a
-├── [-rwxr-xr-x]  b
-└── [-rw-rw-rw-]  c
+	{"mode", &Options{Fs: fs, OutFile: out, FileMode: true}, `
+root
+-rw-r--r-- ┣━ a
+-rwxr-xr-x ┣━ b
+-rw-rw-rw- ┗━ c
 `, 0, 3},
-	{"lastMod", &Options{Fs: fs, OutFile: out, LastMod: true}, `root
-├── [Feb 11 00:00]  a
-├── [Jan 28 00:00]  b
-└── [Jul 12 00:00]  c
+	{"lastMod", &Options{Fs: fs, OutFile: out, LastMod: true}, `
+root
+Feb 11 00:00 ┣━ a
+Jan 28 00:00 ┣━ b
+Jul 12 00:00 ┗━ c
 `, 0, 3}}
 
 func TestGraphics(t *testing.T) {
@@ -314,19 +358,22 @@ func TestGraphics(t *testing.T) {
 		inf := New(root.name)
 		inf.Visit(test.opts)
 		inf.Print(test.opts)
-		if !out.equal(test.expected) {
-			t.Errorf("%s:\ngot:\n%+v\nexpected:\n%+v", test.name, out.str, test.expected)
+		expected := test.expected[1:]
+		if !out.equal(expected) {
+			t.Errorf("%s:\ngot:\n%+v\nexpected:\n%+v", test.name, out.str, expected)
 		}
 		out.clear()
 	}
 }
 
 var symlinkTests = []treeTest{
-	{"symlink", &Options{Fs: fs, OutFile: out}, `root
-└── symlink -> root/symlink
+	{"symlink", &Options{Fs: fs, OutFile: out}, `
+root
+┗━ symlink -> root/symlink
 `, 0, 1},
-	{"symlink-rec", &Options{Fs: fs, OutFile: out, FollowLink: true}, `root
-└── symlink -> root/symlink [recursive, not followed]
+	{"symlink-rec", &Options{Fs: fs, OutFile: out, FollowLink: true}, `
+root
+┗━ symlink -> root/symlink [recursive, not followed]
 `, 0, 1}}
 
 func TestSymlink(t *testing.T) {
@@ -341,8 +388,9 @@ func TestSymlink(t *testing.T) {
 		inf := New(root.name)
 		inf.Visit(test.opts)
 		inf.Print(test.opts)
-		if !out.equal(test.expected) {
-			t.Errorf("%s:\ngot:\n%+v\nexpected:\n%+v", test.name, out.str, test.expected)
+		expected := test.expected[1:]
+		if !out.equal(expected) {
+			t.Errorf("%s:\ngot:\n%+v\nexpected:\n%+v", test.name, out.str, expected)
 		}
 		out.clear()
 	}

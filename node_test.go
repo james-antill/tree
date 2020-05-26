@@ -320,10 +320,10 @@ c
 1.0K ┗━ c
 `, 0, 3},
 	{"show-gid", &Options{Fs: fs, OutFile: out, ShowGid: true}, `
-1    root
-1    ┣━ a
-2    ┣━ b
-1    ┗━ c
+daemon   root
+daemon   ┣━ a
+kmem     ┣━ b
+daemon   ┗━ c
 `, 0, 3},
 	{"mode", &Options{Fs: fs, OutFile: out, FileMode: true}, `
 ---------- root

@@ -514,10 +514,13 @@ func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 		}
 	}
 	// Group/Gid
-	// TODO: support groupname
 	if ok && opts.ShowGid {
 		gidStr := strconv.Itoa(int(gid))
-		props = append(props, fmt.Sprintf("%-4s", gidStr))
+		if g, err := user.LookupGroupId(gidStr); err != nil {
+			props = append(props, fmt.Sprintf("%-8s", gidStr))
+		} else {
+			props = append(props, fmt.Sprintf("%-8s", g.Name))
+		}
 	}
 	// Size
 	if !node.IsDir() {

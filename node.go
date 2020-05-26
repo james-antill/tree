@@ -400,27 +400,34 @@ func DirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
 	return
 }
 
-const alwaysShowChildren = 2 // Always show this number of entries...
-// Take the direct children as Key and convert to next children as Val
-var chopChildrenKey = [...]int64{6_400, 3_200, 1_600, 800, 400, 200, 100,
-	50, 24, 12, 8, 4}
-
-// 24 is a normal terminal screen size... 8 for low numbers of direct children
-// Because is you have a dir. with just 2 dirs. in it show more.
-var chopChildrenVal = [...]int64{8 * 24, 6 * 24, 5 * 24, 4 * 24, 3 * 24, 2 * 24, 24,
-	18, 12, 6, 4, 4, 8}
-
-// Roughly allow upto 50% growth at the next level of the tree
-func chopChildren(dchildren int64) int64 {
-	for i, v := range chopChildrenKey {
-		if v > dchildren {
-			continue
-		}
-
-		return chopChildrenVal[i]
+// reduceNextChildren given a numner of direct children, reduce it to give a
+// number of visible children on the next level.
+func reduceNextChildren(dchildren int64) int64 {
+	if dchildren < 12 { // Half a std. terminal
+		return 24 - dchildren
 	}
 
-	return chopChildrenVal[len(chopChildrenVal)-1]
+	switch {
+	case dchildren < 12:
+		return 24 - dchildren
+	case dchildren < 24:
+		break // Use the default below...
+	case dchildren < 50:
+		return 18
+	case dchildren < 100:
+		return 24
+	case dchildren < 200:
+		return 2 * 24
+	case dchildren < 300:
+		return 3 * 24
+	case dchildren < 400:
+		return 4 * 24
+	case dchildren >= 400: // This should be the real default.
+		return (dchildren / 400) * 4 * 24
+	}
+
+	// Safest "default"
+	return 8
 }
 
 // joinSingleNodes combine output like in github so a single file in a dir.
@@ -732,7 +739,7 @@ func (node *Node) print(opts *Options, indentc, indentn string,
 	// Dynamic leveling, show something but don't spam large trees.
 	if deepLevel == -1 && cutoff == 0 {
 		children := dirDirectChildren1(node)
-		choped := chopChildren(children)
+		choped := reduceNextChildren(children)
 		cutoff = dirNextLevelCutoff(opts, node, choped)
 		// fmt.Println("JDBG:", children, choped, cutoff)
 	} else if deepLevel == -1 && node.IsDir() {

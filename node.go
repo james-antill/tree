@@ -284,7 +284,7 @@ func (node *Node) sort(opts *Options) {
 }
 
 // Print nodes based on the given configuration.
-func (node *Node) Print(opts *Options) { node.print("", "", 0, opts) }
+func (node *Node) Print(opts *Options) { node.print(opts, "", "", 0, nil) }
 
 // dirDirectChildren give the direct dirs. and files for a directory
 func dirDirectChildren(node *Node) (int64, int64) {
@@ -480,7 +480,86 @@ func FormatSize(opts *Options, size int64) string {
 	return fmt.Sprintf("%11d", size)
 }
 
-func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
+type maxTreeValues struct {
+	mIno int
+	mDev int
+	mUid int
+	mGid int
+}
+
+// numLen is a quick hack to do math.Log10(num) + 1
+func numLen(num uint64) int {
+	ret := 0
+	for num > 0 {
+		ret++
+		num /= 10
+	}
+	return ret
+}
+
+// uidConvert takes a uid and returns the name
+func uidConvert(uid uint64) string {
+	uidStr := strconv.Itoa(int(uid))
+	if u, err := user.LookupId(uidStr); err != nil {
+		return uidStr
+	} else {
+		return u.Username
+	}
+}
+
+// gidConvert takes a gid and returns the name
+func gidConvert(gid uint64) string {
+	gidStr := strconv.Itoa(int(gid))
+	if g, err := user.LookupGroupId(gidStr); err != nil {
+		return gidStr
+	} else {
+		return g.Name
+	}
+}
+
+// setupMaxValues walk the entire tree and get the max values. We currently
+// walk the nodes even if we don't print them ... but eh.
+func (node *Node) setupMaxValues(opts *Options, maxvals *maxTreeValues) {
+	ok, inode, device, uid, gid := getStat(node)
+	if !ok {
+		return
+	}
+
+	if opts.Inodes {
+		nino := numLen(inode)
+		if nino > maxvals.mIno {
+			maxvals.mIno = nino
+		}
+	}
+
+	if opts.Device {
+		ndev := numLen(device)
+		if ndev > maxvals.mDev {
+			maxvals.mDev = ndev
+		}
+	}
+
+	if opts.ShowUid {
+		nuid := len(uidConvert(uid))
+		if nuid > maxvals.mUid {
+			maxvals.mUid = nuid
+		}
+	}
+
+	if opts.ShowGid {
+		ngid := len(gidConvert(gid))
+		if ngid > maxvals.mGid {
+			maxvals.mGid = ngid
+		}
+	}
+
+	for _, nnode := range node.nodes {
+		nnode.setupMaxValues(opts, maxvals)
+	}
+}
+
+func (node *Node) print(opts *Options, indentc, indentn string,
+	cutoff int64, maxvals *maxTreeValues) {
 	if node.err != nil {
 		err := node.err.Error()
 		if msgs := strings.Split(err, ": "); len(msgs) > 1 {
@@ -489,16 +568,21 @@ func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 		fmt.Printf("%s [%s]\n", node.path, err)
 		return
 	}
-	var psize int
+
+	if maxvals == nil {
+		maxvals = &maxTreeValues{}
+		node.setupMaxValues(opts, maxvals)
+	}
+
 	var props []string
 	ok, inode, device, uid, gid := getStat(node)
 	// inodes
 	if ok && opts.Inodes {
-		props = append(props, fmt.Sprintf("%d", inode))
+		props = append(props, fmt.Sprintf("%*d", maxvals.mIno, inode))
 	}
 	// device
 	if ok && opts.Device {
-		props = append(props, fmt.Sprintf("%3d", device))
+		props = append(props, fmt.Sprintf("%*d", maxvals.mDev, device))
 	}
 	// Mode
 	if opts.FileMode {
@@ -508,18 +592,18 @@ func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 	if ok && opts.ShowUid {
 		uidStr := strconv.Itoa(int(uid))
 		if u, err := user.LookupId(uidStr); err != nil {
-			props = append(props, fmt.Sprintf("%-8s", uidStr))
+			props = append(props, fmt.Sprintf("%-*s", maxvals.mUid, uidStr))
 		} else {
-			props = append(props, fmt.Sprintf("%-8s", u.Username))
+			props = append(props, fmt.Sprintf("%-*s", maxvals.mUid, u.Username))
 		}
 	}
 	// Group/Gid
 	if ok && opts.ShowGid {
 		gidStr := strconv.Itoa(int(gid))
 		if g, err := user.LookupGroupId(gidStr); err != nil {
-			props = append(props, fmt.Sprintf("%-8s", gidStr))
+			props = append(props, fmt.Sprintf("%-*s", maxvals.mGid, gidStr))
 		} else {
-			props = append(props, fmt.Sprintf("%-8s", g.Name))
+			props = append(props, fmt.Sprintf("%-*s", maxvals.mGid, g.Name))
 		}
 	}
 	// Size
@@ -547,13 +631,14 @@ func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 	}
 	// Last modification
 	if opts.LastMod {
-		props = append(props, node.ModTime().Format("Jan 02 15:04"))
+		props = append(props, node.ModTime().Format("2006-01-02 15:04"))
 	}
 	// Print properties
+	var psize int
 	if len(props) == 1 {
-		fmt.Fprintf(opts.OutFile, "%s ", strings.Join(props, " "))
+		psize, _ = fmt.Fprintf(opts.OutFile, "%s ", strings.Join(props, " "))
 	} else if len(props) > 0 {
-		fmt.Fprintf(opts.OutFile, "[%s] ", strings.Join(props, " "))
+		psize, _ = fmt.Fprintf(opts.OutFile, "[%s] ", strings.Join(props, " "))
 	}
 	// name/path
 	var name string
@@ -656,6 +741,6 @@ func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 			}
 		}
 
-		nnode.print(indentc, indentn+add, cutoff, opts)
+		nnode.print(opts, indentc, indentn+add, cutoff, maxvals)
 	}
 }

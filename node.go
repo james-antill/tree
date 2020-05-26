@@ -497,24 +497,49 @@ func numLen(num uint64) int {
 	return ret
 }
 
+// uidCache cache the user.LookupId calls as it opens the file for each call!
+var uidCache map[uint64]string
+
 // uidConvert takes a uid and returns the name
 func uidConvert(uid uint64) string {
+	if v, ok := uidCache[uid]; ok {
+		return v
+	}
+	if uidCache == nil {
+		uidCache = make(map[uint64]string)
+	}
+
 	uidStr := strconv.Itoa(int(uid))
 	if u, err := user.LookupId(uidStr); err != nil {
-		return uidStr
+		uidCache[uid] = uidStr
 	} else {
-		return u.Username
+		uidCache[uid] = u.Username
 	}
+
+	return uidCache[uid]
 }
+
+// gidCache cache the user.user.LookupGroupId calls as it opens the file for
+// each call! (as of 1.14)
+var gidCache map[uint64]string
 
 // gidConvert takes a gid and returns the name
 func gidConvert(gid uint64) string {
+	if v, ok := gidCache[gid]; ok {
+		return v
+	}
+	if gidCache == nil {
+		gidCache = make(map[uint64]string)
+	}
+
 	gidStr := strconv.Itoa(int(gid))
 	if g, err := user.LookupGroupId(gidStr); err != nil {
-		return gidStr
+		gidCache[gid] = gidStr
 	} else {
-		return g.Name
+		gidCache[gid] = g.Name
 	}
+
+	return gidCache[gid]
 }
 
 // setupMaxValues walk the entire tree and get the max values. We currently

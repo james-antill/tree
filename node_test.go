@@ -320,10 +320,10 @@ c
 1.0K ┗━ c
 `, 0, 3},
 	{"show-gid", &Options{Fs: fs, OutFile: out, ShowGid: true}, `
-daemon   root
-daemon   ┣━ a
-kmem     ┣━ b
-daemon   ┗━ c
+daemon root
+daemon ┣━ a
+kmem   ┣━ b
+daemon ┗━ c
 `, 0, 3},
 	{"mode", &Options{Fs: fs, OutFile: out, FileMode: true}, `
 ---------- root
@@ -332,10 +332,10 @@ daemon   ┗━ c
 -rw-rw-rw- ┗━ c
 `, 0, 3},
 	{"lastMod", &Options{Fs: fs, OutFile: out, LastMod: true}, `
-Jan 01 00:00 root
-Feb 11 00:00 ┣━ a
-Jan 28 00:00 ┣━ b
-Jul 12 00:00 ┗━ c
+0001-01-01 00:00 root
+2015-02-11 00:00 ┣━ a
+2006-01-28 00:00 ┣━ b
+2015-07-12 00:00 ┗━ c
 `, 0, 3}}
 
 func TestGraphics(t *testing.T) {

@@ -22,6 +22,131 @@ const (
 	White
 )
 
+// Easy "port" of the default dircolors...
+// Ref: https://github.com/coreutils/coreutils/blob/master/src/dircolors.hin
+var cArchivesOrCompressed = []string{
+	".tar",
+	".tgz",
+	".arc",
+	".arj",
+	".taz",
+	".lha",
+	".lz4",
+	".lzh",
+	".lzma",
+	".tlz",
+	".txz",
+	".tzo",
+	".t7z",
+	".zip",
+	".z",
+	".dz",
+	".gz",
+	".lrz",
+	".lz",
+	".lzo",
+	".xz",
+	".zst",
+	".tzst",
+	".bz2",
+	".bz",
+	".tbz",
+	".tbz2",
+	".tz",
+	".deb",
+	".rpm",
+	".jar",
+	".war",
+	".ear",
+	".sar",
+	".rar",
+	".alz",
+	".ace",
+	".zoo",
+	".cpio",
+	".7z",
+	".rz",
+	".cab",
+	".wim",
+	".swm",
+	".dwm",
+	".esd",
+}
+
+var cImages = []string{
+	".jpg",
+	".jpeg",
+	".mjpg",
+	".mjpeg",
+	".gif",
+	".bmp",
+	".pbm",
+	".pgm",
+	".ppm",
+	".tga",
+	".xbm",
+	".xpm",
+	".tif",
+	".tiff",
+	".png",
+	".svg",
+	".svgz",
+	".mng",
+	".pcx",
+	".mov",
+	".mpg",
+	".mpeg",
+	".m2v",
+	".mkv",
+	".webm",
+	".webp",
+	".ogm",
+	".mp4",
+	".m4v",
+	".mp4v",
+	".vob",
+	".qt",
+	".nuv",
+	".wmv",
+	".asf",
+	".rm",
+	".rmvb",
+	".flc",
+	".avi",
+	".fli",
+	".flv",
+	".gl",
+	".dl",
+	".xcf",
+	".xwd",
+	".yuv",
+	".cgm",
+	".emf",
+
+	".ogv",
+	".ogx",
+}
+
+var cAudios = []string{
+	".aac",
+	".au",
+	".flac",
+	".m4a",
+	".mid",
+	".midi",
+	".mka",
+	".mp3",
+	".mpc",
+	".ogg",
+	".ra",
+	".wav",
+
+	".oga",
+	".opus",
+	".spx",
+	".xspf",
+}
+
 // ANSIColor
 func ANSIColor(node *Node, s string) string {
 	var style string
@@ -30,15 +155,12 @@ func ANSIColor(node *Node, s string) string {
 	switch {
 	case contains([]string{".bat", ".btm", ".cmd", ".com", ".dll", ".exe"}, ext):
 		style = "1;32"
-	case contains([]string{".arj", ".bz2", ".deb", ".gz", ".lzh", ".rpm",
-		".tar", ".taz", ".tb2", ".tbz2", ".tbz", ".tgz", ".tz", ".tz2", ".z",
-		".zip", ".zoo"}, ext):
+	case contains(cArchivesOrCompressed, ext):
 		style = "1;31"
-	case contains([]string{".asf", ".avi", ".bmp", ".flac", ".gif", ".jpg",
-		"jpeg", ".m2a", ".m2v", ".mov", ".mp3", ".mpeg", ".mpg", ".ogg", ".ppm",
-		".rm", ".tga", ".tif", ".wav", ".wmv",
-		".xbm", ".xpm"}, ext):
+	case contains(cImages, ext):
 		style = "1;35"
+	case contains(cAudios, ext):
+		style = "1;36"
 	case node.IsDir() || mode&os.ModeDir != 0:
 		style = "1;34"
 	case mode&os.ModeNamedPipe != 0:

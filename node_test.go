@@ -320,19 +320,19 @@ c
 1.0K ┗━ c
 `, 0, 3},
 	{"show-gid", &Options{Fs: fs, OutFile: out, ShowGid: true}, `
-root
+1    root
 1    ┣━ a
 2    ┣━ b
 1    ┗━ c
 `, 0, 3},
 	{"mode", &Options{Fs: fs, OutFile: out, FileMode: true}, `
-root
+---------- root
 -rw-r--r-- ┣━ a
 -rwxr-xr-x ┣━ b
 -rw-rw-rw- ┗━ c
 `, 0, 3},
 	{"lastMod", &Options{Fs: fs, OutFile: out, LastMod: true}, `
-root
+Jan 01 00:00 root
 Feb 11 00:00 ┣━ a
 Jan 28 00:00 ┣━ b
 Jul 12 00:00 ┗━ c

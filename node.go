@@ -490,53 +490,41 @@ func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 		return
 	}
 	var psize int
+	var props []string
+	ok, inode, device, uid, gid := getStat(node)
+	// inodes
+	if ok && opts.Inodes {
+		props = append(props, fmt.Sprintf("%d", inode))
+	}
+	// device
+	if ok && opts.Device {
+		props = append(props, fmt.Sprintf("%3d", device))
+	}
+	// Mode
+	if opts.FileMode {
+		props = append(props, node.Mode().String())
+	}
+	// Owner/Uid
+	if ok && opts.ShowUid {
+		uidStr := strconv.Itoa(int(uid))
+		if u, err := user.LookupId(uidStr); err != nil {
+			props = append(props, fmt.Sprintf("%-8s", uidStr))
+		} else {
+			props = append(props, fmt.Sprintf("%-8s", u.Username))
+		}
+	}
+	// Group/Gid
+	// TODO: support groupname
+	if ok && opts.ShowGid {
+		gidStr := strconv.Itoa(int(gid))
+		props = append(props, fmt.Sprintf("%-4s", gidStr))
+	}
+	// Size
 	if !node.IsDir() {
-		var props []string
-		ok, inode, device, uid, gid := getStat(node)
-		// inodes
-		if ok && opts.Inodes {
-			props = append(props, fmt.Sprintf("%d", inode))
-		}
-		// device
-		if ok && opts.Device {
-			props = append(props, fmt.Sprintf("%3d", device))
-		}
-		// Mode
-		if opts.FileMode {
-			props = append(props, node.Mode().String())
-		}
-		// Owner/Uid
-		if ok && opts.ShowUid {
-			uidStr := strconv.Itoa(int(uid))
-			if u, err := user.LookupId(uidStr); err != nil {
-				props = append(props, fmt.Sprintf("%-8s", uidStr))
-			} else {
-				props = append(props, fmt.Sprintf("%-8s", u.Username))
-			}
-		}
-		// Group/Gid
-		// TODO: support groupname
-		if ok && opts.ShowGid {
-			gidStr := strconv.Itoa(int(gid))
-			props = append(props, fmt.Sprintf("%-4s", gidStr))
-		}
-		// Size
 		if opts.ByteSize || opts.UnitSize {
 			props = append(props, FormatSize(opts, node.Size()))
 		}
-		// Last modification
-		if opts.LastMod {
-			props = append(props, node.ModTime().Format("Jan 02 15:04"))
-		}
-		// Print properties
-		if len(props) == 1 {
-			fmt.Fprintf(opts.OutFile, "%s ", strings.Join(props, " "))
-		} else if len(props) > 0 {
-			fmt.Fprintf(opts.OutFile, "[%s]  ", strings.Join(props, " "))
-		}
 	} else {
-		var props []string
-		// Size
 		if opts.ByteSize || opts.UnitSize {
 			var size string
 
@@ -553,10 +541,16 @@ func (node *Node) print(indentc, indentn string, cutoff int64, opts *Options) {
 			}
 			props = append(props, size)
 		}
-		// Print properties
-		if len(props) > 0 {
-			psize, _ = fmt.Fprintf(opts.OutFile, "%s ", strings.Join(props, " "))
-		}
+	}
+	// Last modification
+	if opts.LastMod {
+		props = append(props, node.ModTime().Format("Jan 02 15:04"))
+	}
+	// Print properties
+	if len(props) == 1 {
+		fmt.Fprintf(opts.OutFile, "%s ", strings.Join(props, " "))
+	} else if len(props) > 0 {
+		fmt.Fprintf(opts.OutFile, "[%s] ", strings.Join(props, " "))
 	}
 	// name/path
 	var name string

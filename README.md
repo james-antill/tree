@@ -4,7 +4,7 @@ tree [![License][license-image]][license-url]
 
 Based off of github.com/a8m/tree, but with a bunch of UI changes.
 
-<img src="https://raw.githubusercontent.com/james-antill/tree/filt/cmd/tree/.tree-screenshot.png" alt="tree command output">
+<img src="https://raw.githubusercontent.com/james-antill/tree/main/cmd/tree/.tree-screenshot.png" alt="tree command output">
 
 #### Installation:
 ```sh

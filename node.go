@@ -23,6 +23,7 @@ type Node struct {
 	os.FileInfo
 	path   string
 	depth  int
+	dSize  int64
 	err    error
 	nodes  Nodes
 	sorted bool
@@ -270,7 +271,7 @@ func (node *Node) sort(opts *Options) {
 	}
 	if opts.DirSort {
 		nxt := fn
-		fn = func(f1, f2 os.FileInfo) bool {
+		fn = func(f1, f2 *Node) bool {
 			return DirSort(f1, f2, nxt)
 		}
 	}
@@ -380,7 +381,11 @@ func dirRecursiveChildren(opts *Options, node *Node) (num int64, err error) {
 
 // DirRecursiveSize returns the size of the directory, as the total of all
 // child nodes.
-func DirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
+func DirRecursiveSize(node *Node) (size int64, err error) {
+	if node.dSize > 0 {
+		return node.dSize, nil
+	}
+
 	for _, nnode := range node.nodes {
 		if nnode.err != nil {
 			err = nnode.err
@@ -390,14 +395,28 @@ func DirRecursiveSize(opts *Options, node *Node) (size int64, err error) {
 		if !nnode.IsDir() {
 			size += nnode.Size()
 		} else {
-			nsize, e := DirRecursiveSize(opts, nnode)
+			nsize, e := DirRecursiveSize(nnode)
 			size += nsize
 			if e != nil {
 				err = e
 			}
 		}
 	}
+
+	if err == nil {
+		node.dSize = size
+	}
 	return
+}
+
+// NodeSize returns the size of the directory/file, errors are ignored.
+func NodeSize(node *Node) int64 {
+	if !node.IsDir() {
+		return node.Size()
+	}
+
+	size, _ := DirRecursiveSize(node)
+	return size
 }
 
 // reduceNextChildren given a numner of direct children, reduce it to give a
@@ -647,7 +666,7 @@ func (node *Node) print(opts *Options, indentc, indentn string,
 		if opts.ByteSize || opts.UnitSize {
 			var size string
 
-			rsize, err := DirRecursiveSize(opts, node)
+			rsize, err := DirRecursiveSize(node)
 
 			if err != nil && rsize <= 0 {
 				if opts.UnitSize {

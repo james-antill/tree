@@ -1,7 +1,5 @@
 package tree
 
-import "os"
-
 func (n Nodes) Len() int      { return len(n) }
 func (n Nodes) Swap(i, j int) { n[i], n[j] = n[j], n[i] }
 
@@ -11,32 +9,36 @@ type ByFunc struct {
 }
 
 func (b ByFunc) Less(i, j int) bool {
-	return b.Fn(b.Nodes[i].FileInfo, b.Nodes[j].FileInfo)
+	return b.Fn(b.Nodes[i], b.Nodes[j])
 }
 
-type SortFunc func(f1, f2 os.FileInfo) bool
+type SortFunc func(f1, f2 *Node) bool
 
-func ModSort(f1, f2 os.FileInfo) bool {
+func ModSort(nf1, nf2 *Node) bool {
+	f1 := nf1.FileInfo
+	f2 := nf2.FileInfo
 	return f1.ModTime().Before(f2.ModTime())
 }
 
 // This is a secondary sort function...
-func DirSort(f1, f2 os.FileInfo, nxt SortFunc) bool {
+func DirSort(nf1, nf2 *Node, nxt SortFunc) bool {
+	f1 := nf1.FileInfo
+	f2 := nf2.FileInfo
 	if f1.IsDir() == f2.IsDir() {
-		return nxt(f1, f2)
+		return nxt(nf1, nf2)
 	}
 	return f1.IsDir() && !f2.IsDir()
 }
 
-func SizeSort(f1, f2 os.FileInfo) bool {
-	return f1.Size() < f2.Size()
+func SizeSort(f1, f2 *Node) bool {
+	return NodeSize(f1) < NodeSize(f2)
 }
 
-func NameSort(f1, f2 os.FileInfo) bool {
+func NameSort(f1, f2 *Node) bool {
 	return f1.Name() < f2.Name()
 }
 
-func VerSort(f1, f2 os.FileInfo) bool {
+func VerSort(f1, f2 *Node) bool {
 	return NaturalLess(f1.Name(), f2.Name())
 }
 

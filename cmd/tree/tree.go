@@ -205,7 +205,7 @@ func main() {
 		inf := tree.New(dir)
 		d, f := inf.Visit(opts)
 		nd, nf = nd+d, nf+f
-		nsize, _ := tree.DirRecursiveSize(opts, inf)
+		nsize := tree.NodeSize(inf)
 		ns += nsize
 		inf.Print(opts)
 	}

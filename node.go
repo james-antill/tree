@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Node represent some node in the tree
@@ -132,6 +133,29 @@ func newSubNode(opts *Options, node *Node, name string) (nnode *Node, dirs, file
 	return nnode, d, f
 }
 
+type errFI string
+
+func (n errFI) Name() string {
+	return string(n)
+}
+
+func (n errFI) Size() int64 {
+	return 0
+}
+func (n errFI) Mode() os.FileMode {
+	return 0
+}
+func (n errFI) ModTime() time.Time {
+	var ret time.Time
+	return ret
+}
+func (n errFI) IsDir() bool {
+	return false
+}
+func (n errFI) Sys() interface{} {
+	return nil
+}
+
 const semWeight = 64
 const rootProc = true
 
@@ -150,6 +174,7 @@ func (node *Node) Visit(opts *Options) (dirs, files int) {
 	fi, err := opts.Fs.Stat(node.path)
 	if err != nil {
 		node.err = err
+		node.FileInfo = errFI(filepath.Base(node.path)) // So this isn't nil
 		return
 	}
 	node.FileInfo = fi

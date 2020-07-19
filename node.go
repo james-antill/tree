@@ -294,6 +294,10 @@ func (node *Node) sort(opts *Options) {
 	default:
 		fn = NameSort // Default should be sorted, not unsorted.
 	}
+	// Name can't have == members for dirs. But Size can easily.
+	if fn != NameSort && fn != VerSort {
+		sort.Sort(ByFunc{node.nodes, NameSort})
+	}
 	if opts.DirSort {
 		nxt := fn
 		fn = func(f1, f2 *Node) bool {
@@ -302,9 +306,9 @@ func (node *Node) sort(opts *Options) {
 	}
 	if fn != nil {
 		if opts.ReverSort {
-			sort.Sort(sort.Reverse(ByFunc{node.nodes, fn}))
+			sort.Stable(sort.Reverse(ByFunc{node.nodes, fn}))
 		} else {
-			sort.Sort(ByFunc{node.nodes, fn})
+			sort.Stable(ByFunc{node.nodes, fn})
 		}
 	}
 }

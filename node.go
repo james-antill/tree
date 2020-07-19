@@ -278,6 +278,7 @@ func (node *Node) sortedNodes(opts *Options) Nodes {
 
 func (node *Node) sort(opts *Options) {
 	var fn SortFunc
+	var nSort bool
 	switch {
 	case opts.NoSort:
 		return
@@ -287,15 +288,18 @@ func (node *Node) sort(opts *Options) {
 		fn = CTimeSort
 	case opts.VerSort:
 		fn = VerSort
+		nSort = true
 	case opts.SizeSort:
 		fn = SizeSort
 	case opts.NameSort:
 		fn = NameSort
+		nSort = true
 	default:
 		fn = NameSort // Default should be sorted, not unsorted.
+		nSort = true
 	}
 	// Name can't have == members for dirs. But Size can easily.
-	if fn != NameSort && fn != VerSort {
+	if !nSort {
 		sort.Sort(ByFunc{node.nodes, NameSort})
 	}
 	if opts.DirSort {

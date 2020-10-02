@@ -15,26 +15,31 @@ import (
 
 var (
 	// List
-	a          = flag.Bool("a", false, "")
-	d          = flag.Bool("d", false, "")
-	f          = flag.Bool("f", false, "")
+	I = flag.String("ignore", "", "")
+	L = flag.Int("level", -1, "")
+	P = flag.String("pattern", "", "")
+
+	a = flag.Bool("all", false, "")
+	d = flag.Bool("dirs-only", false, "")
+	f = flag.Bool("full-path", false, "")
+	l = flag.Bool("follow", false, "")
+	o = flag.String("output", "", "")
+
 	ignorecase = flag.Bool("ignore-case", false, "")
 	noreport   = flag.Bool("noreport", false, "")
-	l          = flag.Bool("l", false, "")
-	L          = flag.Int("L", -1, "")
-	P          = flag.String("P", "", "")
-	I          = flag.String("I", "", "")
-	o          = flag.String("o", "", "")
+
 	// Files
-	s      = flag.Bool("s", false, "")
-	h      = flag.Bool("h", false, "")
-	p      = flag.Bool("p", false, "")
-	u      = flag.Bool("u", false, "")
-	g      = flag.Bool("g", false, "")
-	Q      = flag.Bool("Q", false, "")
-	D      = flag.Bool("D", false, "")
-	inodes = flag.Bool("inodes", false, "")
+	D = flag.Bool("mtime", false, "")
+
+	g = flag.Bool("gid", false, "")
+	h = flag.Bool("human", false, "")
+	p = flag.Bool("protections", false, "")
+	s = flag.Bool("bytes", false, "")
+	u = flag.Bool("uid", false, "")
+
 	device = flag.Bool("device", false, "")
+	inodes = flag.Bool("inodes", false, "")
+
 	// Sort
 	U         = flag.Bool("U", false, "")
 	v         = flag.Bool("v", false, "")
@@ -43,48 +48,59 @@ var (
 	r         = flag.Bool("r", false, "")
 	dirsfirst = flag.Bool("dirsfirst", false, "")
 	sort      = flag.String("sort", "", "")
+
 	// Graphics
-	i = flag.Bool("i", false, "")
 	C = flag.Bool("C", false, "")
-	J = flag.Bool("J", false, "")
+	F = flag.Bool("classify", false, "")
+	J = flag.Bool("nojoin", false, "")
+	Q = flag.Bool("quote", false, "")
+
+	i = flag.Bool("noindent", false, "")
+
+	numericIDs = flag.Bool("numeric-uid-gid", false, "")
 )
 
 var usage = `Usage: tree [options...] [paths...]
 
 Options:
-    ------- Listing options -------
-    -a		    All files are listed.
-    -d		    List directories only.
-    -l		    Follow symbolic links like directories.
-    -f		    Print the full path prefix for each file.
-    -L		    Descend only N level dirs. deep (0=unlimited, -1=auto (def)).
-    -P		    List only those files that match the pattern given.
-    -I		    Do not list files that match the given pattern.
-    --ignore-case   Ignore case when pattern matching.
-    --noreport	    Turn off file/directory count at end of tree listing.
-    -o filename	    Output to file instead of stdout.
-    -------- File options ---------
-    -Q		    Quote filenames with double quotes.
-    -p		    Print the protections for each file.
-    -u		    Displays file owner or UID number.
-    -g		    Displays file group owner or GID number.
-    -s		    Print the size in bytes of each file.
-    -h		    Print the size in a more human readable way.
-    -D		    Print the date of last modification or (-c) status change.
-    --inodes	    Print inode number of each file.
-    --device	    Print device ID number to which each file belongs.
-    ------- Sorting options -------
-    -v		    Sort files alphanumerically by version.
-    -t		    Sort files by last modification time.
-    -c		    Sort files by last status change time.
-    -U		    Leave files unsorted.
-    -r		    Reverse the order of the sort.
-    --dirsfirst	    List directories before files (-U disables).
-    --sort X	    Select sort: name,version,size,mtime,ctime.
-    ------- Graphics options ------
-    -i		    Don't print indentation lines.
-    -C		    Turn colorization on always. (def: on for terminals)
-    -J		    Turn joining of single directories off.
+    ----------------------- Listing options ----------------------
+    -I --ignore          Do not list files that match the given pattern.
+    -L --levels          Descend only N level dirs. deep (0=all, -1=auto (def)).
+    -P --pattern         List only those files that match the pattern given.
+    -a --all             All files are listed.
+    -d --dirs-only       List directories only.
+    -f --full-path       Print the full path prefix for each file.
+    -l --follow          Follow symbolic links like directories.
+    -o --output filename Output to file instead of stdout.
+    --ignore-case        Ignore case when pattern matching.
+    --noreport	         Turn off file/directory count at end of tree listing.
+
+    ----------------------- File options -------------------------
+    -D --mtime           Print the date of last modification change.
+    -g --gid             Displays file group owner or GID number.
+    -h --human           Print the size in a more human readable way.
+    -p --protections     Print the protections for each file.
+    -u --uid             Displays file owner or UID number.
+    -s --bytes           Print the size in bytes of each file.
+    --device             Print device ID number to which each file belongs.
+    --inodes             Print inode number of each file.
+
+    ---------------------- Sorting options -----------------------
+    -U                   Leave files unsorted.
+    -c                   Sort files by last status change time.
+    -r                   Reverse the order of the sort.
+    -t                   Sort files by last modification time.
+    -v                   Sort files alphanumerically by version.
+    --dirsfirst          List directories before files (-U disables).
+    --sort X             Select sort: name,version,size,mtime,ctime.
+
+    ---------------------- Graphics options ----------------------
+    -C --color           Turn colorization on always. (def: on for terminals)
+    -F --classify        Append indicator (one of */=>@|) to entries.
+    -J --nojoin          Turn joining of single directories off.
+    -Q --quote           Quote filenames with double quotes.
+    -i --noindent        Don't print indentation lines.
+    --numeric-uid-gid    Print the user and group IDs as numbers.
 `
 
 type fs struct{}
@@ -129,7 +145,33 @@ func normPath(root string) (string, error) {
 }
 
 func main() {
+	// List
+	flag.StringVar(I, "I", *I, "alias for --ignore")
+	flag.IntVar(L, "L", *L, "alias for --level")
+	flag.StringVar(P, "P", *P, "alias for --pattern")
+
+	flag.BoolVar(a, "a", *a, "alias for --all")
+	flag.BoolVar(d, "d", *d, "alias for --dirs-only")
+	flag.BoolVar(f, "f", *f, "alias for --full-path")
+	flag.BoolVar(l, "l", *l, "alias for --follow")
+	flag.StringVar(o, "o", *o, "alias for --output")
+
+	// Files
+	flag.BoolVar(D, "D", *D, "alias for --mtime")
+	flag.BoolVar(g, "g", *g, "alias for --gid")
+	flag.BoolVar(h, "h", *h, "alias for --human")
+	flag.BoolVar(p, "p", *p, "alias for --protections")
+	flag.BoolVar(s, "s", *s, "alias for --bytes")
+	flag.BoolVar(u, "u", *u, "alias for --uid")
+
+	// Graphics
+	flag.BoolVar(F, "F", *F, "alias for classify")
+	flag.BoolVar(J, "J", *J, "alias for --nojoin")
+	flag.BoolVar(Q, "Q", *Q, "alias for --quote")
+	flag.BoolVar(i, "i", *i, "alias for --noindent")
+
 	flag.Usage = func() { fmt.Fprint(os.Stderr, usage) }
+
 	var nd, nf int
 	var ns int64
 	var dirs = []string{"."}
@@ -181,7 +223,6 @@ func main() {
 		ShowUid:  *u,
 		ShowGid:  *g,
 		LastMod:  *D,
-		Quotes:   *Q,
 		Inodes:   *inodes,
 		Device:   *device,
 		// Sort
@@ -197,6 +238,9 @@ func main() {
 		NoIndent:   *i,
 		Colorize:   *C,
 		JoinSingle: !*J,
+		Classify:   *F,
+		Quotes:     *Q,
+		NumericIDs: *numericIDs,
 	}
 	for _, dir := range dirs {
 		if d, e := normPath(dir); e == nil {

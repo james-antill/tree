@@ -79,6 +79,8 @@ type Options struct {
 	NoIndent   bool
 	Colorize   bool
 	JoinSingle bool
+	Classify   bool
+	NumericIDs bool
 
 	wg  sync.WaitGroup
 	sem *semaphore.Weighted
@@ -527,8 +529,30 @@ func joinSingleNodes(opts *Options, node *Node, name string) (*Node, string) {
 	if opts.Colorize {
 		nxtName = ANSIColor(nxt, nxtName)
 	}
+	// Don't do classify here, because it's always a dir/symlink-to-dir
 	name = filepath.Join(name, nxtName)
 	return joinSingleNodes(opts, nxt, name)
+}
+
+// classify returns the suffix for a path entry name
+func classify(node *Node) string {
+	var mode = node.Mode()
+	switch {
+	case node.IsDir() || mode&os.ModeDir != 0:
+		return "/"
+	case mode&os.ModeNamedPipe != 0:
+		return "|"
+	case mode&os.ModeSocket != 0:
+		return "="
+	case mode&os.ModeSymlink != 0:
+		return "@"
+	case mode&modeExecute != 0:
+		return "*"
+
+	default:
+	}
+
+	return ""
 }
 
 // FormatSize as a string
@@ -560,15 +584,20 @@ func numLen(num uint64) int {
 var uidCache map[uint64]string
 
 // uidConvert takes a uid and returns the name
-func uidConvert(uid uint64) string {
+func uidConvert(uid uint64, lookup bool) string {
 	if v, ok := uidCache[uid]; ok {
 		return v
 	}
+
+	uidStr := strconv.Itoa(int(uid))
+	if !lookup {
+		return uidStr
+	} // Don't cache this case...
+
 	if uidCache == nil {
 		uidCache = make(map[uint64]string)
 	}
 
-	uidStr := strconv.Itoa(int(uid))
 	if u, err := user.LookupId(uidStr); err != nil {
 		uidCache[uid] = uidStr
 	} else {
@@ -583,15 +612,20 @@ func uidConvert(uid uint64) string {
 var gidCache map[uint64]string
 
 // gidConvert takes a gid and returns the name
-func gidConvert(gid uint64) string {
+func gidConvert(gid uint64, lookup bool) string {
 	if v, ok := gidCache[gid]; ok {
 		return v
 	}
+
+	gidStr := strconv.Itoa(int(gid))
+	if !lookup {
+		return gidStr
+	} // Don't cache this case...
+
 	if gidCache == nil {
 		gidCache = make(map[uint64]string)
 	}
 
-	gidStr := strconv.Itoa(int(gid))
 	if g, err := user.LookupGroupId(gidStr); err != nil {
 		gidCache[gid] = gidStr
 	} else {
@@ -624,14 +658,14 @@ func (node *Node) setupMaxValues(opts *Options, maxvals *maxTreeValues) {
 	}
 
 	if opts.ShowUid {
-		nuid := len(uidConvert(uid))
+		nuid := len(uidConvert(uid, !opts.NumericIDs))
 		if nuid > maxvals.mUid {
 			maxvals.mUid = nuid
 		}
 	}
 
 	if opts.ShowGid {
-		ngid := len(gidConvert(gid))
+		ngid := len(gidConvert(gid, !opts.NumericIDs))
 		if ngid > maxvals.mGid {
 			maxvals.mGid = ngid
 		}
@@ -674,21 +708,13 @@ func (node *Node) print(opts *Options, indentc, indentn string,
 	}
 	// Owner/Uid
 	if ok && opts.ShowUid {
-		uidStr := strconv.Itoa(int(uid))
-		if u, err := user.LookupId(uidStr); err != nil {
-			props = append(props, fmt.Sprintf("%-*s", maxvals.mUid, uidStr))
-		} else {
-			props = append(props, fmt.Sprintf("%-*s", maxvals.mUid, u.Username))
-		}
+		uidStr := uidConvert(uid, !opts.NumericIDs)
+		props = append(props, fmt.Sprintf("%-*s", maxvals.mUid, uidStr))
 	}
 	// Group/Gid
 	if ok && opts.ShowGid {
-		gidStr := strconv.Itoa(int(gid))
-		if g, err := user.LookupGroupId(gidStr); err != nil {
-			props = append(props, fmt.Sprintf("%-*s", maxvals.mGid, gidStr))
-		} else {
-			props = append(props, fmt.Sprintf("%-*s", maxvals.mGid, g.Name))
-		}
+		gidStr := gidConvert(gid, !opts.NumericIDs)
+		props = append(props, fmt.Sprintf("%-*s", maxvals.mGid, gidStr))
 	}
 	// Size
 	if !node.IsDir() {
@@ -734,14 +760,20 @@ func (node *Node) print(opts *Options, indentc, indentn string,
 
 	// Quotes
 	if opts.Quotes {
-		name = fmt.Sprintf("\"%s\"", name)
+		name = strconv.Quote(name)
 	}
 	// Colorize
 	if opts.Colorize {
 		name = ANSIColor(node, name)
 	}
+
 	// Do the github thing...
 	node, name = joinSingleNodes(opts, node, name)
+
+	// Classify
+	if opts.Classify {
+		name = name + classify(node)
+	}
 
 	// IsSymlink
 	if node.Mode()&os.ModeSymlink == os.ModeSymlink {
